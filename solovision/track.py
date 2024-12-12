@@ -31,6 +31,7 @@ def on_predict_start(predictor, persist=False):
     for i in range(predictor.dataset.bs):
         tracker = create_tracker(
             tracking_config,
+            predictor.custom_args.with_reid,
             predictor.custom_args.reid_model,
             predictor.device,
             predictor.custom_args.half,
@@ -47,7 +48,7 @@ def on_predict_start(predictor, persist=False):
 @torch.no_grad()
 def run(args):
     
-    ul_models = ['yolov8', 'yolov9', 'yolov10', 'yolo11', 'rtdetr', 'sam']
+    ul_models = ['yolov3', 'yolov5', 'yolov8', 'yolov9', 'yolov10', 'yolo11', 'rtdetr', 'sam']
 
     yolo = YOLO(
         args.yolo_model if any(yolo in str(args.yolo_model) for yolo in ul_models) else 'yolov8n.pt',
@@ -57,9 +58,11 @@ def run(args):
         source=args.source,
         conf=args.conf,
         iou=args.iou,
+        ext_track = True,
         agnostic_nms=args.agnostic_nms,
-        show=True,
+        show=args.show,
         stream=True,
+        save_tracks =args.save_tracks,
         save_crop= args.save_crops,
         device=args.device,
         show_conf=args.show_conf,
@@ -92,6 +95,13 @@ def run(args):
     yolo.predictor.custom_args = args
 
     for r in results:
+        # Get the plotted frame from results
+        plotted_frame = r.plot()
+        
+        # If stream_display callback is provided, use it
+        if hasattr(args, 'stream_display') and args.stream_display is not None:
+            args.stream_display(plotted_frame)
+            
         if args.show is True:
             if cv2.waitKey(1) & 0xFF in (ord(' '), ord('q')):
                 break
